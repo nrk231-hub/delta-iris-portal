@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Delta Iris — Document Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#1E4FA0;--blue-dark:#163d82;--blue-light:#e8eef8;
+  --orange:#F58220;--green:#10b981;--red:#ef4444;--amber:#f59e0b;
+  --grey-50:#f9fafb;--grey-100:#f3f4f6;--grey-200:#e5e7eb;
+  --grey-500:#6b7280;--grey-700:#374151;--grey-900:#111827;
+  --white:#fff;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.1);
+}
+body{font-family:'Inter',sans-serif;background:#f0f4ff;color:var(--grey-900);min-height:100vh}
+
+/* HEADER */
+.header{background:var(--blue);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+.header-logo{display:flex;align-items:center;gap:12px}
+.header-logo img{height:36px}
+.header-title{color:rgba(255,255,255,0.7);font-size:13px;font-weight:500}
+.header-order{color:white;font-size:15px;font-weight:700}
+
+/* MAIN */
+.main{max-width:800px;margin:0 auto;padding:24px 16px 60px}
+
+/* ORDER CARD */
+.order-card{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-md);border:1px solid var(--grey-200)}
+.order-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.order-company{font-size:20px;font-weight:800;color:var(--grey-900)}
+.order-product{font-size:13px;color:var(--grey-500);margin-top:3px}
+.order-badge{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700}
+.badge-review{background:#fef3c7;color:#92400e}
+.badge-approved{background:#dcfce7;color:#166534}
+.badge-changes{background:#fee2e2;color:#991b1b}
+.badge-pending{background:#f3f4f6;color:#374151}
+
+.order-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:16px;background:var(--grey-50);border-radius:10px}
+.meta-item{text-align:center}
+.meta-label{font-size:10px;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}
+.meta-value{font-size:14px;font-weight:700;color:var(--grey-900)}
+
+/* TIMELINE */
+.timeline{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-md);border:1px solid var(--grey-200)}
+.section-title{font-size:13px;font-weight:700;color:var(--grey-500);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px}
+.timeline-steps{position:relative;padding-left:24px}
+.timeline-steps::before{content:'';position:absolute;left:9px;top:0;bottom:0;width:2px;background:var(--grey-200)}
+.step{position:relative;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px}
+.step:last-child{margin-bottom:0}
+.step-dot{width:20px;height:20px;border-radius:50%;flex-shrink:0;margin-left:-24px;display:flex;align-items:center;justify-content:center;font-size:11px;position:relative;z-index:1}
+.step-done{background:var(--green);color:white}
+.step-current{background:var(--orange);color:white;box-shadow:0 0 0 4px rgba(245,130,32,0.2)}
+.step-pending{background:var(--grey-200);color:var(--grey-500)}
+.step-info{flex:1}
+.step-name{font-size:13px;font-weight:600;color:var(--grey-900)}
+.step-name.pending{color:var(--grey-500)}
+.step-date{font-size:11px;color:var(--grey-500);margin-top:2px}
+.step-current-label{display:inline-block;background:var(--orange);color:white;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:700;margin-left:6px}
+
+/* DOCUMENTS */
+.documents{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-md);border:1px solid var(--grey-200)}
+.doc-item{display:flex;align-items:center;gap:14px;padding:14px;border:1.5px solid var(--grey-200);border-radius:10px;margin-bottom:10px;transition:border-color 0.2s}
+.doc-item:last-child{margin-bottom:0}
+.doc-item.approved{border-color:#86efac;background:#f0fdf4}
+.doc-item.changes{border-color:#fca5a5;background:#fff5f5}
+.doc-icon{width:40px;height:40px;background:var(--blue-light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.doc-info{flex:1;min-width:0}
+.doc-name{font-size:14px;font-weight:600;color:var(--grey-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-meta{font-size:11px;color:var(--grey-500);margin-top:2px}
+.doc-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;flex-shrink:0}
+.doc-status.approved{background:#dcfce7;color:#166534}
+.doc-status.pending{background:#fef3c7;color:#92400e}
+.doc-status.changes{background:#fee2e2;color:#991b1b}
+.doc-actions{display:flex;gap:8px;flex-shrink:0}
+.btn-view{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--blue);color:var(--blue);background:white;font-family:inherit;transition:all 0.2s}
+.btn-view:hover{background:var(--blue);color:white}
+.btn-approve{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:var(--green);color:white;font-family:inherit}
+.btn-changes{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:#fff;color:var(--red);border:1.5px solid var(--red);font-family:inherit}
+
+/* ACTION PANEL */
+.action-panel{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-md);border:1px solid var(--grey-200)}
+.action-buttons{display:flex;gap:12px;flex-wrap:wrap}
+.btn-approve-all{flex:1;padding:14px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;background:var(--green);color:white;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;min-width:160px}
+.btn-request-changes{flex:1;padding:14px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:2px solid var(--red);background:white;color:var(--red);font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;min-width:160px}
+
+/* COMMENTS */
+.comments{background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:var(--shadow-md);border:1px solid var(--grey-200)}
+.comment-item{padding:12px;border-radius:8px;margin-bottom:10px}
+.comment-item.customer{background:#f0f4ff;border-left:3px solid var(--blue)}
+.comment-item.company{background:#f0fdf4;border-left:3px solid var(--green)}
+.comment-author{font-size:11px;font-weight:700;color:var(--grey-500);margin-bottom:4px}
+.comment-text{font-size:13px;color:var(--grey-900)}
+.comment-time{font-size:10px;color:var(--grey-500);margin-top:4px}
+.comment-input{width:100%;border:1.5px solid var(--grey-200);border-radius:8px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;min-height:80px;margin-top:12px}
+.comment-input:focus{outline:none;border-color:var(--blue)}
+.btn-send{margin-top:8px;padding:10px 20px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+
+/* MODALS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.overlay.hidden{display:none}
+.modal{background:white;border-radius:16px;width:100%;max-width:500px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:16px}
+.modal textarea{width:100%;border:1.5px solid var(--grey-200);border-radius:8px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;min-height:100px}
+.modal textarea:focus{outline:none;border-color:var(--blue)}
+.modal-actions{display:flex;gap:10px;margin-top:16px;justify-content:flex-end}
+.btn-cancel{padding:10px 20px;border-radius:8px;border:1.5px solid var(--grey-200);background:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-submit{padding:10px 20px;border-radius:8px;border:none;background:var(--blue);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-submit.danger{background:var(--red)}
+
+/* LOADING */
+.loading{text-align:center;padding:60px 20px;color:var(--grey-500)}
+.loading-spinner{width:40px;height:40px;border:3px solid var(--grey-200);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.error-state{text-align:center;padding:60px 20px}
+.error-icon{font-size:48px;margin-bottom:16px}
+.error-title{font-size:20px;font-weight:700;margin-bottom:8px}
+.error-sub{color:var(--grey-500);font-size:14px}
+
+.success-banner{background:#dcfce7;border:1.5px solid #86efac;border-radius:10px;padding:16px;text-align:center;font-weight:700;color:#166534;font-size:15px;margin-bottom:16px}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:white;padding:12px 24px;border-radius:30px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:opacity 0.3s}
+.toast.show{opacity:1}
+
+@media(max-width:600px){
+  .action-buttons{flex-direction:column}
+  .btn-approve-all,.btn-request-changes{min-width:unset}
+  .doc-actions{flex-direction:column}
+  .order-meta{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="loading">
+    <div class="loading-spinner"></div>
+    <div>Loading your documents...</div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="changes-modal">
+  <div class="modal">
+    <div class="modal-title">💬 Request Changes</div>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:12px">Please describe what needs to be corrected. Our team will update the documents and notify you.</p>
+    <textarea id="changes-text" placeholder="e.g. Please correct the unit price on the commercial invoice from USD 12.50 to USD 12.00. Also the HS code should be 2918.19..."></textarea>
+    <div id="changes-doc-select" style="margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-submit danger" onclick="submitChanges()">📤 Send Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="approve-modal">
+  <div class="modal">
+    <div class="modal-title">✅ Confirm Approval</div>
+    <p style="font-size:14px;color:#374151;margin-bottom:16px">By approving, you confirm that all documents are correct and authorise Delta Iris Co. to proceed with the shipment.</p>
+    <div style="background:#f0fdf4;border-radius:8px;padding:12px;font-size:13px;color:#166534;margin-bottom:16px">
+      <strong>Your name will be recorded as:</strong><br/>
+      <span id="approver-name-display"></span>
+    </div>
+    <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Your Name *</label>
+    <input id="approver-name" type="text" placeholder="Enter your full name" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;margin-bottom:4px" oninput="document.getElementById('approver-name-display').textContent=this.value"/>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-submit" onclick="submitApproval()">✅ Approve Documents</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://yydmsttenscnwivmblbr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5ZG1zdHRlbnNjbndpdm1ibGJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2ODA1MjcsImV4cCI6MjA5NjI1NjUyN30.u0k6PsvHRaKbTXqebXyklhilUxa1NyN7oKGrwtvVqOM';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Get portal token from URL
+const token = new URLSearchParams(window.location.search).get('t') || window.location.pathname.split('/').pop();
+let portalData = null;
+let shipmentData = null;
+
+const DOC_ICONS = {
+  'Commercial Invoice': '🧾',
+  'Packing List': '📦',
+  'Certificate of Origin': '🏛️',
+  'Bill of Lading': '🚢',
+  'Proforma Invoice': '💼',
+  'COA': '🔬',
+  'MSDS': '⚗️',
+  'Phytosanitary Certificate': '🌿',
+  'Fumigation Certificate': '💨',
+  'Halal Certificate': '☪️',
+  'Free Sale Certificate': '📋',
+  'Packing Declaration': '📄',
+};
+
+async function init() {
+  if (!token) {
+    showError('Invalid Link', 'This portal link is invalid or has expired. Please contact Delta Iris for a new link.');
+    return;
+  }
+
+  // Load portal data
+  const { data: portal, error } = await db
+    .from('shipment_portals')
+    .select('*, shipments(*)')
+    .eq('token', token)
+    .single();
+
+  if (error || !portal) {
+    showError('Link Not Found', 'This portal link is invalid or has expired. Please contact Delta Iris Co. at info@deltairis.com');
+    return;
+  }
+
+  portalData = portal;
+  shipmentData = portal.shipments;
+
+  // Load documents
+  const { data: docs } = await db
+    .from('portal_documents')
+    .select('*')
+    .eq('portal_id', portal.id)
+    .order('created_at');
+
+  // Load comments
+  const { data: comments } = await db
+    .from('portal_comments')
+    .select('*')
+    .eq('portal_id', portal.id)
+    .order('created_at');
+
+  renderPortal(portal, docs || [], comments || []);
+}
+
+function renderPortal(portal, docs, comments) {
+  const s = portal;
+  const allApproved = docs.length > 0 && docs.every(d => d.status === 'approved');
+  const hasChanges = docs.some(d => d.status === 'changes_requested');
+  const overallStatus = allApproved ? 'approved' : hasChanges ? 'changes_requested' : 'under_review';
+
+  const statusLabel = {
+    approved: '✅ Approved',
+    changes_requested: '✏️ Changes Requested',
+    under_review: '🔄 Under Review',
+    pending: '⏳ Awaiting Documents',
+  }[overallStatus] || '⏳ Pending';
+
+  const statusClass = {
+    approved: 'approved',
+    changes_requested: 'changes',
+    under_review: 'review',
+    pending: 'pending',
+  }[overallStatus] || 'pending';
+
+  // Timeline steps
+  const steps = [
+    { name: 'Purchase Order Received', done: true, date: s.po_date },
+    { name: 'Order Confirmation Sent', done: true, date: s.order_confirm_date },
+    { name: 'Proforma Invoice Sent', done: !!s.pi_date, date: s.pi_date },
+    { name: 'Payment Received', done: !!s.payment_date, date: s.payment_date },
+    { name: 'Draft Documents Shared', done: docs.length > 0, date: docs[0]?.created_at?.slice(0,10), current: docs.length > 0 && !allApproved },
+    { name: 'Documents Approved', done: allApproved, date: allApproved ? docs[docs.length-1]?.approved_at?.slice(0,10) : null },
+    { name: 'Final Documents Released', done: !!s.final_docs_date, date: s.final_docs_date },
+    { name: 'Shipment Dispatched', done: !!s.dispatch_date, date: s.dispatch_date },
+    { name: 'Delivered', done: !!s.delivered_date, date: s.delivered_date },
+  ];
+
+  const currentStepIdx = steps.findIndex(s => !s.done);
+
+  document.getElementById('app').innerHTML = `
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-logo">
+        <div style="background:white;border-radius:8px;padding:4px 8px;font-size:14px;font-weight:800;color:#1E4FA0">🌿 Delta Iris</div>
+        <div>
+          <div class="header-order">${s.shipment_ref || 'Shipment Portal'}</div>
+          <div class="header-title">Document Review Portal</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.7);text-align:right">
+        Secure portal for<br/><strong style="color:white">${s.customer_company || ''}</strong>
+      </div>
+    </div>
+
+    <div class="main">
+
+      ${allApproved ? '<div class="success-banner">✅ All documents have been approved. Thank you!</div>' : ''}
+
+      <!-- ORDER CARD -->
+      <div class="order-card">
+        <div class="order-header">
+          <div>
+            <div class="order-company">${s.customer_company || 'Customer'}</div>
+            <div class="order-product">${s.product_description || ''}</div>
+          </div>
+          <div class="order-badge badge-${statusClass}">${statusLabel}</div>
+        </div>
+        <div class="order-meta">
+          <div class="meta-item">
+            <div class="meta-label">Shipment Ref</div>
+            <div class="meta-value">${s.shipment_ref || '—'}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Product</div>
+            <div class="meta-value" style="font-size:12px">${s.product_name || '—'}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Quantity</div>
+            <div class="meta-value">${s.quantity || '—'}</div>
+          </div>
+          <div class="meta-item">
+            <div class="meta-label">Destination</div>
+            <div class="meta-value">${s.destination || '—'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIMELINE -->
+      <div class="timeline">
+        <div class="section-title">📍 Shipment Progress</div>
+        <div class="timeline-steps">
+          ${steps.map((step, i) => `
+            <div class="step">
+              <div class="step-dot ${step.done ? 'step-done' : step.current ? 'step-current' : 'step-pending'}">
+                ${step.done ? '✓' : step.current ? '→' : ''}
+              </div>
+              <div class="step-info">
+                <div class="step-name ${!step.done && !step.current ? 'pending' : ''}">
+                  ${step.name}
+                  ${step.current ? '<span class="step-current-label">YOU ARE HERE</span>' : ''}
+                </div>
+                ${step.date ? `<div class="step-date">${new Date(step.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- DOCUMENTS -->
+      <div class="documents">
+        <div class="section-title">📄 Documents for Review (${docs.length})</div>
+        ${docs.length === 0 ? '<div style="text-align:center;color:#6b7280;padding:20px">Documents will appear here once uploaded by Delta Iris.</div>' : ''}
+        ${docs.map(doc => `
+          <div class="doc-item ${doc.status === 'approved' ? 'approved' : doc.status === 'changes_requested' ? 'changes' : ''}">
+            <div class="doc-icon">${DOC_ICONS[doc.doc_type] || '📄'}</div>
+            <div class="doc-info">
+              <div class="doc-name">${doc.doc_type}${doc.version > 1 ? ` (v${doc.version})` : ''}</div>
+              <div class="doc-meta">
+                Uploaded ${new Date(doc.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}
+                ${doc.approved_by ? ` · Approved by ${doc.approved_by}` : ''}
+              </div>
+            </div>
+            <div class="doc-status ${doc.status === 'approved' ? 'approved' : doc.status === 'changes_requested' ? 'changes' : 'pending'}">
+              ${doc.status === 'approved' ? '✅ Approved' : doc.status === 'changes_requested' ? '✏️ Changes' : '⏳ Pending'}
+            </div>
+            <div class="doc-actions">
+              ${doc.file_url ? `<button class="btn-view" onclick="window.open('${doc.file_url}','_blank')">👁 View</button>` : ''}
+              ${doc.status !== 'approved' && !allApproved ? `<button class="btn-approve" onclick="approveDoc('${doc.id}')">✅</button>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <!-- ACTION PANEL -->
+      ${!allApproved && docs.length > 0 ? `
+      <div class="action-panel">
+        <div class="section-title">📋 Your Action Required</div>
+        <p style="font-size:13px;color:#374151;margin-bottom:16px">
+          Please review all documents above and either approve them or request changes.
+        </p>
+        <div class="action-buttons">
+          <button class="btn-approve-all" onclick="openApproveModal()">
+            ✅ Approve All Documents
+          </button>
+          <button class="btn-request-changes" onclick="openChangesModal()">
+            ✏️ Request Changes
+          </button>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- COMMENTS / MESSAGES -->
+      <div class="comments">
+        <div class="section-title">💬 Messages & Notes</div>
+        ${comments.length === 0 ? '<div style="color:#6b7280;font-size:13px;margin-bottom:12px">No messages yet.</div>' : ''}
+        ${comments.map(c => `
+          <div class="comment-item ${c.author_type === 'customer' ? 'customer' : 'company'}">
+            <div class="comment-author">${c.author_type === 'customer' ? '👤 ' + (c.author_name || 'You') : '🌿 Delta Iris Co.'}</div>
+            <div class="comment-text">${c.message}</div>
+            <div class="comment-time">${new Date(c.created_at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        `).join('')}
+        <textarea class="comment-input" id="comment-text" placeholder="Type a message to Delta Iris..."></textarea>
+        <button class="btn-send" onclick="sendComment()">📤 Send Message</button>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="text-align:center;color:#9ca3af;font-size:12px;margin-top:24px">
+        <div style="margin-bottom:4px">🌿 <strong>Delta Iris Co.</strong> — Specialty Ingredients & Microencapsulation</div>
+        <div>Dombivli East, Maharashtra, India · info@deltairis.com</div>
+        <div style="margin-top:8px;font-size:11px">This is a secure document portal. Link valid for this shipment only.</div>
+      </div>
+
+    </div>
+  `;
+}
+
+async function approveDoc(docId) {
+  const name = prompt('Please enter your name to approve this document:');
+  if (!name) return;
+  const { error } = await db.from('portal_documents').update({
+    status: 'approved',
+    approved_by: name,
+    approved_at: new Date().toISOString()
+  }).eq('id', docId);
+  if (error) { showToast('Error: ' + error.message); return; }
+  showToast('Document approved ✓');
+  await logComment('Document approved by ' + name, 'customer', name);
+  setTimeout(init, 500);
+}
+
+function openApproveModal() {
+  document.getElementById('approve-modal').classList.remove('hidden');
+  document.getElementById('approver-name').focus();
+}
+
+function openChangesModal() {
+  // Build doc checkboxes
+  const docItems = document.querySelectorAll('.doc-item');
+  document.getElementById('changes-modal').classList.remove('hidden');
+  document.getElementById('changes-text').focus();
+}
+
+function closeModal() {
+  document.getElementById('changes-modal').classList.add('hidden');
+  document.getElementById('approve-modal').classList.add('hidden');
+}
+
+async function submitApproval() {
+  const name = document.getElementById('approver-name').value.trim();
+  if (!name) { showToast('Please enter your name'); return; }
+
+  // Approve all pending docs
+  const { error } = await db.from('portal_documents').update({
+    status: 'approved', approved_by: name, approved_at: new Date().toISOString()
+  }).eq('portal_id', portalData.id).neq('status', 'approved');
+
+  // Update portal status
+  await db.from('shipment_portals').update({
+    status: 'approved', approved_by: name, approved_at: new Date().toISOString()
+  }).eq('id', portalData.id);
+
+  if (error) { showToast('Error: ' + error.message); return; }
+
+  await logComment('All documents approved by ' + name, 'customer', name);
+  closeModal();
+  showToast('✅ All documents approved!');
+  setTimeout(init, 800);
+}
+
+async function submitChanges() {
+  const text = document.getElementById('changes-text').value.trim();
+  if (!text) { showToast('Please describe the changes needed'); return; }
+
+  await db.from('portal_documents').update({ status: 'changes_requested' })
+    .eq('portal_id', portalData.id).neq('status', 'approved');
+
+  await db.from('shipment_portals').update({ status: 'changes_requested' })
+    .eq('id', portalData.id);
+
+  await logComment('Changes requested: ' + text, 'customer', 'Customer');
+  closeModal();
+  showToast('Changes request sent ✓');
+  setTimeout(init, 800);
+}
+
+async function sendComment() {
+  const text = document.getElementById('comment-text').value.trim();
+  if (!text) return;
+  await logComment(text, 'customer', 'Customer');
+  document.getElementById('comment-text').value = '';
+  showToast('Message sent ✓');
+  setTimeout(init, 500);
+}
+
+async function logComment(message, authorType, authorName) {
+  await db.from('portal_comments').insert({
+    portal_id: portalData.id,
+    message, author_type: authorType, author_name: authorName,
+    created_at: new Date().toISOString()
+  });
+}
+
+function showError(title, sub) {
+  document.getElementById('app').innerHTML = `
+    <div class="header"><div class="header-logo"><div style="background:white;border-radius:8px;padding:4px 8px;font-size:14px;font-weight:800;color:#1E4FA0">🌿 Delta Iris</div></div></div>
+    <div class="main"><div class="error-state">
+      <div class="error-icon">🔗</div>
+      <div class="error-title">${title}</div>
+      <div class="error-sub">${sub}</div>
+    </div></div>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>

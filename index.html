@@ -209,7 +209,7 @@ async function init() {
   // Load portal data
   const { data: portal, error } = await db
     .from('shipment_portals')
-    .select('*, shipments(*)')
+    .select('*')
     .eq('token', token)
     .single();
 
@@ -219,7 +219,7 @@ async function init() {
   }
 
   portalData = portal;
-  shipmentData = portal.shipments;
+  shipmentData = portal;
 
   // Load documents
   const { data: docs } = await db
